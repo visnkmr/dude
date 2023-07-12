@@ -65,13 +65,13 @@ fn main() {
     // let (mut tx, rx1) = spmc::channel();
     // let (tx, rx) = mpsc::channel();
     let tree = sled::open(dirs::data_local_dir().unwrap().join(appname)).expect("open");
-    let diskname="nvme1n1";
+    // let diskname="nvme1n1";
     let mut fd = File::open(&"/proc/diskstats").unwrap();
     let mut found =false;
     let mut io_data = String::new();
             // Read the content of the file (diskstats) to the io_data string
             fd.read_to_string(&mut io_data).unwrap();
-            // let mut lcs=vec![];
+            let mut lcs=vec![];
             let mut lc=0;
             // io_data.lines().map(|s|{
             //     if(s==diskname){
@@ -87,17 +87,17 @@ fn main() {
                     panic!("Not enough data from diskstats");
                     process::exit(0);
                 }
-                if fields[2]==diskname{
-                // if re.is_match(fields[2]){
-                    print!("{}...{}",lc,line);
-                    // lcs.push(lc);
+                // if fields[2]==diskname{
+                if re.is_match(fields[2]){
+                    println!("{}...{}",lc,line);
+                    lcs.push(lc);
                     found=true;
-                    break;
+                    // break;
                 }
                 lc+=1;
             }
             // lc-=1;
-            // println!("{:?}",lcs);
+            println!("{:?}",lcs);
             // lc=5;
 
     if(!found){
@@ -123,7 +123,7 @@ fn main() {
     let data_for_thread = data.clone();
     
     thread::spawn(move || loop {
-        // let lcsd=lcs.clone();
+        let lcsd=lcs.clone();
         // tx.send(updateusage(false,&mut val,&mut ptx,&mut prx,iname.clone()));
 //    println!("fromhere------------>1");
        // 2048 is for mb
@@ -140,7 +140,12 @@ fn main() {
 //    let mut ot;
 //    loop {
         // Create the curr Hashmap, allow us to compare with the prev one
-        let mut ds: IoStats;
+        let mut ds = IoStats {
+                        mb_read: 0.0,
+                        mb_wrtn: 0.0,
+                    };
+        let mut dsw=ds.mb_wrtn;
+        let mut dsr=ds.mb_read;
         // Create the output string
         let mut output = String::new();
         // Add the header string to the output
@@ -153,7 +158,7 @@ fn main() {
             fd.read_to_string(&mut io_data).unwrap();
             // Iterate over each line (each disk)
             // print!("{lc}");
-            // for lc in lcsd
+            for lc in lcsd
             {
                 let line = io_data.lines().nth(lc).unwrap();
                 {
@@ -167,10 +172,14 @@ fn main() {
                     if fields.len() < 14 {
                         panic!("Not enough data from diskstats");
                     }
+                    dsr=dsr + (fields[5].parse::<f64>().unwrap()* fctr);
+                    dsw=dsw + (fields[9].parse::<f64>().unwrap()* fctr);
                     ds = IoStats {
-                        mb_read: fields[5].parse::<f64>().unwrap() * fctr,
-                        mb_wrtn: fields[9].parse::<f64>().unwrap() * fctr,
+                        mb_read: dsr ,
+                        mb_wrtn: dsw ,
                     };
+                }
+            }
                     if(firsttime){
                         uptoprevsession=ds.clone();
                         firsttime=false;
@@ -195,7 +204,6 @@ fn main() {
                         let mb_read_s = ds.mb_read - prev.mb_read;
                         let mb_wrtn_s = ds.mb_wrtn - prev.mb_wrtn;
                             perminute+=mb_wrtn_s;
-                            if g>60{
                                     let date = Local::now();
                                 let current_date = date.format("%Y-%m-%d").to_string();
                                 let wbf=
@@ -209,6 +217,7 @@ fn main() {
                                                 0.0 as f64
                                                 },
                                         };  
+                            if g>60{
                                 
                                 let tosave=wbf+perminute;
                                 let bytes_r = bincode::serialize(&current_date).unwrap();
@@ -220,14 +229,31 @@ fn main() {
                             }
                         // let tw=tree.get(bincode::serialize(&current_date).unwrap()).ok().unwrap().unwrap();
                         
-                        
+                        // let date = Local::now();
+                        //     let current_date = date.format("%Y-%m-%d").to_string();
+                        //     let wbf=
+                        //             match tree.get(bincode::serialize(&current_date).unwrap()).unwrap() {
+                        //                 Some(bytes) => {
+                        //                     let k:f64 = bincode::deserialize(&bytes).unwrap();
+                        //                     k
+                        //                     // play with this struct here
+                        //                 },
+                        //                 None => {
+                        //                     0.0 as f64
+                        //                     },
+                        //             }; 
                         // print!("{}",wbf);
                         
                         // Add the line, formatted with color and spacing
                         //                    output.push_str(&format!("{:2} {:10.2} {:15.2}\n", fields[2], mb_read_s, mb_wrtn_s));
                         // output.push_str(&format!("{:2} {:2.2}ps {:2.2}ps\n", fields[2], byte_unit::Byte::from_bytes(mb_read_s as u128).get_appropriate_unit(true), byte_unit::Byte::from_bytes(mb_wrtn_s as u128).get_appropriate_unit(true)));
                         // output.push_str(&format!("SR:{:2.2} SW:{:2.2} R:{:2.2}ps W:{:2.2}ps", 
-                        output.push_str(&format!("R:{:2.2}ps W:{:2.2}ps WT:", 
+                            
+                            
+                        output.push_str(
+                            // &format!("WT:{:2.2} SR:{:2.2} SW:{:2.2} R:{:2.2}ps W:{:2.2}ps", 
+                            &format!("WT:{:2.2} R:{:2.2}ps W:{:2.2}ps", 
+                                byte_unit::Byte::from_bytes(wbf as u128).get_appropriate_unit(true),
                             // byte_unit::Byte::from_bytes(upsr as u128).get_appropriate_unit(true),
                             // byte_unit::Byte::from_bytes(upsw as u128).get_appropriate_unit(true),
                             byte_unit::Byte::from_bytes(mb_read_s as u128).get_appropriate_unit(true), 
@@ -241,8 +267,8 @@ fn main() {
                         // output.push_str(&format!("{} {}B {}B\n", fields[2], 0.00, 0.00));
                         output.push_str(&format!("{}B {}B\n", 0.00, 0.00));
                         //                    curr= IoStats{mb_read:0.0,mb_wrtn:0.0};
-                    }
-                }
+                    
+                
             }
             // Move the cursor to the start of the file
             fd.seek(SeekFrom::Start(0)).unwrap();
@@ -267,20 +293,20 @@ fn main() {
  //            	output.push_str(&format!("{}.....{}",k1,byte_unit::Byte::from_bytes(k as u128).get_appropriate_unit(true)));
  //            	// print!()
 	// }
-       let date = Local::now();
-                            let current_date = date.format("%Y-%m-%d").to_string();
-                            let wbf=
-                                    match tree.get(bincode::serialize(&current_date).unwrap()).unwrap() {
-                                        Some(bytes) => {
-                                            let k:f64 = bincode::deserialize(&bytes).unwrap();
-                                            k
-                                            // play with this struct here
-                                        },
-                                        None => {
-                                            0.0 as f64
-                                            },
-                                    }; 
-        output.push_str(&format!("{}",byte_unit::Byte::from_bytes(wbf as u128).get_appropriate_unit(true)));
+       // let date = Local::now();
+       //                      let current_date = date.format("%Y-%m-%d").to_string();
+       //                      let wbf=
+       //                              match tree.get(bincode::serialize(&current_date).unwrap()).unwrap() {
+       //                                  Some(bytes) => {
+       //                                      let k:f64 = bincode::deserialize(&bytes).unwrap();
+       //                                      k
+       //                                      // play with this struct here
+       //                                  },
+       //                                  None => {
+       //                                      0.0 as f64
+       //                                      },
+       //                              }; 
+       //  output.push_str(&format!("{}",byte_unit::Byte::from_bytes(wbf as u128).get_appropriate_unit(true)));
        *data=output;
 //        *ot=output;
         // Save current as previous for the next loop
@@ -296,7 +322,7 @@ fn main() {
 
     // let rx=rx1.clone();
     // let data =
-    match TcpListener::bind("127.0.0.1:8976") {
+    match TcpListener::bind("127.0.0.1:8971") {
         Ok(listener) =>{
 
             for stream in listener.incoming(){
