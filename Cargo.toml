@@ -7,7 +7,7 @@ lto = true
 panic = "abort"
 
 [package]
-name = "disk_usage_daemon"
+name = "dude"
 version = "0.1.0"
 edition = "2021"
 
