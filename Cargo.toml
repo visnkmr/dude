@@ -20,6 +20,7 @@ serde_json="1.0"
 serde = {version = "1.0.140", default-features = false }
 byte-unit = { features = ["u128"], default-features = false, version = "4.0.17" }
 sled = "0.34.7"
+prefstore = "0.5.0"
 dirs="*"
 bincode={ version = "*" }
 chrono="*"
