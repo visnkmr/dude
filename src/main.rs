@@ -5,10 +5,40 @@ use std::{process::{Command, exit, self},
 // mod fcc;
 use std::sync::{Arc, Mutex};
 use std::str::from_utf8;
-use chrono::Local;
+use chrono::{Local, Utc};
 use regex::Regex;
 const appname:&str="dude";
+fn listallkeys(){
+    let db = sled::open(dirs::data_local_dir().unwrap().join(appname)).expect("open");
+    // let tree = db.open_tree("my_tree");
+    // let date = Local::now();
+    let today = Utc::now();
+    // let current_date = date.format("%Y-%m-%d").to_string();
+    // // println!("{}",current_date);
+    // let date_28_days_ago = &(today - chrono::Duration::days(27)).format("%Y-%m-%d").to_string();
+    // let date_yesterday = &(today - chrono::Duration::days(1)).format("%Y-%m-%d").to_string();
+    // let date_today = &(today ).format("%Y-%m-%d").to_string();
+    println!("{}",db.len());
+    let mut  totaldata=0 as u128;
+    let mut daywithdata=0;
+    for i in 1..800{  
+        let datetofetch=&(today - chrono::Duration::days(i)).format("%Y-%m-%d").to_string();
+        match db.get(bincode::serialize(&datetofetch).unwrap()).unwrap() {
+            Some(bytes) => {
+                let k:f64 = bincode::deserialize(&bytes).unwrap();
+                totaldata+=k as u128;
+                daywithdata+=1;
+                println!("{}---{}",datetofetch, byte_unit::Byte::from_bytes(k as u128).get_appropriate_unit(true));
+                // play with this struct here
+            },
+            None => {
+                },
+        };  
+        
+    }
+}
 fn main() {
+    // listallkeys();
 //    use std::sync::{Arc, Mutex};
 //    use std::thread;
 //    use std::time::Duration;
